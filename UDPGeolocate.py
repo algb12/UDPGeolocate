@@ -5,7 +5,6 @@ logging.basicConfig(level=logging.INFO)
 
 # Constants
 GEOLOCATION_API_URL = 'http://ip-api.com/json/'
-TOR_CHECK_URL = 'https://check.torproject.org/exit-addresses'
 devnull = open(os.devnull, 'wb')
 
 # Detect UDP port used by service
@@ -54,18 +53,6 @@ def get_IP_data(ip):
     logging.debug('Geolocation API (%s) returned data: %s', url, data)
     return data
 
-# Function to determine if IP is a Tor exit node
-def IP_is_Tor_exit_node(ip):
-    url = TOR_CHECK_URL
-    handle = urllib.urlopen(url)
-    data = handle.read()
-    if ip in data:
-        logging.debug('IP in Tor exit node list %s', url)
-        return True
-    else:
-        logging.debug('IP not in Tor exit node list %s', url)
-        return False
-
 if __name__ == '__main__':
     print '### REAL-TIME UDP IP GEOLOCATOR ###'
     print '==================================='
@@ -92,12 +79,12 @@ if __name__ == '__main__':
         try:
             # Don't do anything if IP is the same as old IP
             ip = get_IP_from_UDP_packet(port, minPackLen)
-            if oldIp != ip and IP_is_Tor_exit_node(ip) == False:
+            if oldIp != ip:
                 print 'Capturing UDP packet on port ' + str(port) + '...'
                 print get_IP_data(ip)
                 oldIp = ip
                 time.sleep(float(timeout))
             else:
-                logging.debug('IP %s in Tor exit node list or identical to old IP')
+                logging.debug('IP %s is identical to old IP', ip)
         except KeyboardInterrupt:
             sys.exit()
