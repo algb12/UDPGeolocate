@@ -126,6 +126,7 @@ class UDPGeolocate(object):
         logging.debug('Geolocation API (%s) returned data: %s', url, jsonStr)
         return data
 
+    # Logic runs in a separate thread from GUI
     def logic_thread(self):
         logging.debug('Started logic thread')
 
@@ -145,6 +146,7 @@ class UDPGeolocate(object):
             oldIp = ip
             time.sleep(float(self.timeout))
 
+    # Set config for UDPGeolocate
     def set_conf(self, minPackLen, port, timeout):
         self.minPackLen = minPackLen if minPackLen != '' else 200
         if port != '':
@@ -160,12 +162,14 @@ class UDPGeolocate(object):
             root.destroy()
         self.timeout = timeout if timeout != '' else 1
 
+    # Gracefully stop subprocesses
     def stop_procs(self):
         for proc in self.procs:
             proc.terminate()
             proc.wait()
             logging.debug('Terminated process with PID %s', proc.pid)
 
+    # Handler to gracefully exit app
     def stop_app(self):
         self.stop_procs()
         self.running = False
@@ -175,10 +179,11 @@ class UDPGeolocate(object):
 if __name__ == '__main__':
     print('### REAL-TIME UDP IP GEOLOCATOR ###')
 
+    # Initiate main class
     u = UDPGeolocate()
     u.Windows_prereq_check()
 
-    # Config section
+    # Config dialogue
     root = tk.Tk()
     root.protocol("WM_DELETE_WINDOW", u.stop_app)
 
@@ -200,6 +205,7 @@ if __name__ == '__main__':
 
     root.mainloop()
 
+    # Start logic thread
     t = threading.Thread(target=u.logic_thread)
     t.daemon = True
     t.start()
@@ -215,8 +221,10 @@ if __name__ == '__main__':
         None, 16), text='Geolocation data for UNDEFINED').grid(row=0, columnspan=2)
     tk.Button(root, text='Quit', command=u.stop_app).grid(row=1, columnspan=2)
 
+    # Upon closing window, stop app
     root.protocol("WM_DELETE_WINDOW", u.stop_app)
 
+    # GUI loop
     while u.running:
         try:
             elem = u.myQueue.get_nowait()
