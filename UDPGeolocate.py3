@@ -33,7 +33,7 @@ class UDPGeolocate(object):
         self.CUR_DIR = os.path.dirname(os.path.realpath(__file__))
         self.running = True
         self.procs = []
-        self.myQueue = queue.Queue()
+        self.queue = queue.Queue()
         signal.signal(signal.SIGINT, signal.default_int_handler)
         atexit.register(self.stop_app)
 
@@ -140,7 +140,7 @@ class UDPGeolocate(object):
             if oldIp != ip:
                 print(('Capturing UDP packet on port ' + str(self.port) + '...'))
                 data = self.get_IP_data(ip)
-                self.myQueue.put({'data': data, 'ip': ip})
+                self.queue.put({'data': data, 'ip': ip})
             else:
                 logging.debug('IP %s is identical to old IP', ip)
             oldIp = ip
@@ -174,6 +174,35 @@ class UDPGeolocate(object):
         self.stop_procs()
         self.running = False
 
+    # Config dialogue
+    def show_conf_dialogue(self):
+        root = tk.Tk()
+        root.protocol("WM_DELETE_WINDOW", self.stop_app)
+
+        root.title('Config')
+        tk.Label(root, text='Minimum packet size').pack()
+        root.minPackLenEntry = tk.Entry(root)
+        root.minPackLenEntry.insert(0, 200)
+        root.minPackLenEntry.pack()
+        tk.Label(root, text='Port (leave blank for detection)').pack()
+        root.portEntry = tk.Entry(root)
+        root.portEntry.pack()
+        tk.Label(root, text='Timeout (seconds)').pack()
+        root.timeoutEntry = tk.Entry(root)
+        root.timeoutEntry.insert(0, 1)
+        root.timeoutEntry.pack()
+        root.done_btn = tk.Button(root, text='Done')
+        root.done_btn.config(command=lambda: self.on_conf_OK(root))
+        root.done_btn.pack()
+
+        root.mainloop()
+
+    def on_conf_OK(self, root):
+        root.done_btn.config(state='disabled')
+        self.set_conf(root.minPackLenEntry.get(),
+                      root.portEntry.get(), root.timeoutEntry.get())
+        root.destroy()
+
 
 if __name__ == '__main__':
     print('### REAL-TIME UDP IP GEOLOCATOR ###')
@@ -182,33 +211,15 @@ if __name__ == '__main__':
     u = UDPGeolocate()
     u.Windows_prereq_check()
 
-    # Config dialogue
-    root = tk.Tk()
-    root.protocol("WM_DELETE_WINDOW", u.stop_app)
-
-    root.title('Config')
-    tk.Label(root, text='Minimum packet size').pack()
-    minPackLenEntry = tk.Entry(root)
-    minPackLenEntry.insert(0, 200)
-    minPackLenEntry.pack()
-    tk.Label(root, text='Port (leave blank for detection)').pack()
-    portEntry = tk.Entry(root)
-    portEntry.pack()
-    tk.Label(root, text='Timeout (seconds)').pack()
-    timeoutEntry = tk.Entry(root)
-    timeoutEntry.insert(0, 1)
-    timeoutEntry.pack()
-    done_btn = tk.Button(root, text='Done', command=lambda: done_btn.config(state='disabled') or u.set_conf(
-        minPackLenEntry.get(), portEntry.get(), timeoutEntry.get()) or root.destroy())
-    done_btn.pack()
-
-    root.mainloop()
+    # Show config dialogue
+    u.show_conf_dialogue()
 
     # Start logic thread
     t = threading.Thread(target=u.logic_thread)
     t.daemon = True
     t.start()
 
+    # MAIN GUI
     # Initialise Tkinter
     root = tk.Tk()
     root.title('UDPGeolocate')
@@ -223,10 +234,10 @@ if __name__ == '__main__':
     # Upon closing window, stop app
     root.protocol("WM_DELETE_WINDOW", u.stop_app)
 
-    # GUI loop
+    # Tkinter GUI loop
     while u.running:
         try:
-            elem = u.myQueue.get_nowait()
+            elem = u.queue.get_nowait()
             data = elem['data']
             ip = elem['ip']
         except queue.Empty:
