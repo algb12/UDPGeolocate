@@ -18,10 +18,12 @@ Also, the country/city of the stranger may provide for some good conversation st
 Basically, use with care! I am NOT responsible or liable in any way for any direct or indirect damages incurred by this script, just saying!
 
 ## Prerequisites
-### Installing Python 2.x (if applicable)
-Make sure that you've got the latest Python 2.x installed on your OS. On OS X and Linux, this should be available out-of-the-box. If, for some strange reason, it isn't, it can be installed too. On Windows, however, it has to be installed. When installing Python on Windows, **make sure to enable the "Add to Path" option in the Python installer**!
+### Installing Python (if applicable)
+Make sure that you've got Python installed on your OS. On OS X and Linux, this should be available out-of-the-box. If, for some strange reason, it isn't, it can be installed too. On Windows, however, it has to be installed. When installing Python on Windows, **make sure to enable the "Add to Path" option in the Python installer**!
 
 Python can be downloaded from the [official Python website](https://www.python.org/).
+
+**IMPORTANT:** If you run UDPGeolocate with Python 3.x, use the file with the `.py3` extension. Use the one with the `py` extension for Python 2.x (version 2.6 or above).
 
 ### Installing WinPcap or Win10Pcap (Windows only)
 For packet-layer network traffic access, and for WinDump to work, Windows needs the WinPcap drivers, which can be [downloaded here](https://www.winpcap.org/).

@@ -6,14 +6,14 @@ import platform
 import sys
 import os
 import time
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import re
 import signal
 import atexit
 import logging
 import threading
-import Queue
-import Tkinter as tk
+import queue
+import tkinter as tk
 
 # Set logging level to logging.DEBUG for detailed debug info
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +33,7 @@ class UDPGeolocate(object):
         self.CUR_DIR = os.path.dirname(os.path.realpath(__file__))
         self.running = True
         self.procs = []
-        self.myQueue = Queue.Queue()
+        self.myQueue = queue.Queue()
         signal.signal(signal.SIGINT, signal.default_int_handler)
         atexit.register(self.stop_app)
 
@@ -50,7 +50,7 @@ class UDPGeolocate(object):
                 logging.warning(
                     'WinDump not found. Trying to download WinDump...')
                 try:
-                    urllib.urlretrieve(
+                    urllib.request.urlretrieve(
                         self.WINDUMP_URL, self.CUR_DIR + "\WinDump.exe")
                 except:
                     logging.error(
@@ -120,7 +120,7 @@ class UDPGeolocate(object):
     # Function to get data for IP from geolocation API
     def get_IP_data(self, ip):
         url = self.GEOLOCATION_API_URL + ip
-        handle = urllib.urlopen(url)
+        handle = urllib.request.urlopen(url)
         jsonStr = handle.read().decode('utf-8')
         data = json.loads(jsonStr)
         logging.debug('Geolocation API (%s) returned data: %s', url, jsonStr)
@@ -138,7 +138,7 @@ class UDPGeolocate(object):
             # Don't do anything if IP is the same as old IP
             ip = self.get_IP_from_UDP_packet(self.port, self.minPackLen)
             if oldIp != ip:
-                print('Capturing UDP packet on port ' + str(self.port) + '...')
+                print(('Capturing UDP packet on port ' + str(self.port) + '...'))
                 data = self.get_IP_data(ip)
                 self.myQueue.put({'data': data, 'ip': ip})
             else:
@@ -229,7 +229,7 @@ if __name__ == '__main__':
             elem = u.myQueue.get_nowait()
             data = elem['data']
             ip = elem['ip']
-        except Queue.Empty:
+        except queue.Empty:
             # logging.debug('Queue empty')
             pass
         except KeyboardInterrupt:
@@ -242,7 +242,7 @@ if __name__ == '__main__':
             titleLabel = tk.Label(root, font=(
                 None, 16), text='Geolocation data for ' + str(ip)).grid(row=0)
             pos = 1
-            for entry in data.iterkeys():
+            for entry in data.keys():
                 labelsEntry[entry] = tk.Label(
                     root, text=entry).grid(row=pos, stick='W')
                 labelsValue[entry] = tk.Label(root, text=data[entry]).grid(
