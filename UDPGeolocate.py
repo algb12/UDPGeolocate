@@ -33,7 +33,7 @@ class UDPGeolocate(object):
         self.CUR_DIR = os.path.dirname(os.path.realpath(__file__))
         self.running = True
         self.procs = []
-        self.queue = Queue.Queue()
+        self.q = Queue.Queue()
         signal.signal(signal.SIGINT, signal.default_int_handler)
         atexit.register(self.stop_app)
 
@@ -138,9 +138,10 @@ class UDPGeolocate(object):
             # Don't do anything if IP is the same as old IP
             ip = self.get_IP_from_UDP_packet(self.port, self.minPackLen)
             if oldIp != ip:
-                print('Capturing UDP packet on port ' + str(self.port) + '...')
+                logging.debug('Capturing UDP packet on port ' +
+                              str(self.port) + '...')
                 data = self.get_IP_data(ip)
-                self.queue.put({'data': data, 'ip': ip})
+                self.q.put({'data': data, 'ip': ip})
             else:
                 logging.debug('IP %s is identical to old IP', ip)
             oldIp = ip
@@ -205,8 +206,6 @@ class UDPGeolocate(object):
 
 
 if __name__ == '__main__':
-    print('### REAL-TIME UDP IP GEOLOCATOR ###')
-
     # Initiate main class
     u = UDPGeolocate()
     u.Windows_prereq_check()
@@ -228,7 +227,7 @@ if __name__ == '__main__':
     labelsEntry = {}
     labelsValue = {}
     titleLabel = tk.Label(root, font=(
-        None, 16), text='Geolocation data for UNDEFINED').grid(row=0, columnspan=2)
+        None, 16), text='Awaiting new IP...').grid(row=0, columnspan=2)
     tk.Button(root, text='Quit', command=u.stop_app).grid(row=1, columnspan=2)
 
     # Upon closing window, stop app
@@ -237,7 +236,7 @@ if __name__ == '__main__':
     # Tkinter GUI loop
     while u.running:
         try:
-            elem = u.queue.get_nowait()
+            elem = u.q.get_nowait()
             data = elem['data']
             ip = elem['ip']
         except Queue.Empty:
@@ -251,7 +250,7 @@ if __name__ == '__main__':
             for widget in root.winfo_children():
                 widget.destroy()
             titleLabel = tk.Label(root, font=(
-                None, 16), text='Geolocation data for ' + str(ip)).grid(row=0)
+                None, 16), text='Geolocation data for ' + str(ip) + ' (port ' + str(u.port) + '):').grid(row=0)
             pos = 1
             for entry in data.iterkeys():
                 labelsEntry[entry] = tk.Label(
