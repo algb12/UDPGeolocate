@@ -8,10 +8,10 @@ It allows one to find out information about the stranger, such as their location
 
 The script only works in video mode, as it relies on UDP packets, which are transmitted peer-to-peer, hence containing the IP address of the stranger.
 
-What started out as a hacky Bash script for personal use, I have decided to turn into a more robust Python script and share it with the world to use!
+UDPGeolocate started off as a hacky bash script (eww), and then became a command-line utility. Now it is a user-friendly GUI app!
 
 ## Why do we need this?
-Basically, the answer is: it's a cool little thing. I am IN NO WAY for infiltrating the privacy of people, put considering that this information is public anyways, this script just makes it easier to make sense of this information.
+Basically, the answer is: It's a cool little thing. I am IN NO WAY for infiltrating the privacy of people, but considering that this information is public anyways, this script just makes it easier to make sense of this information.
 
 Also, the country/city of the stranger may provide for some good conversation starter, so may other, more obscure information, such as their latitude and longitude.
 
@@ -50,15 +50,15 @@ In case the prerequisites check fails, follow the instructions printed out by UD
 
 ## Config
 ### Minimum packet length
-This is the minimum packet length (including things besides the payload, such as the header and IP information) which should trigger UDPGeolocate's querying mechanism. Setting it to low can cause rogue UDP packets to trigger false results with UDPGeolocate.
+This is the minimum packet length (including things besides the payload, such as the header and IP information) which should trigger UDPGeolocate's querying mechanism. Setting it too low can cause rogue UDP packets to trigger false results with UDPGeolocate. Default: 200
 
 ### UDP port
-The port on which UDPGeolocate should listen on for packets. Can be detected by UDPGeolocate by running the video chat service with microphone and camera disabled. Stranger must have video enabled for detection to work. A skip or two shouldn't throw the detection off too much. After the port has been detected, you need to enable camera and microphone again for the geolocation to work properly.
+The port on which UDPGeolocate should listen on for packets. Can be detected by UDPGeolocate simply by running detection mode along the video chat. A skip or two shouldn't throw the detection off too much, as UDPGeolocate samples 5 packets, and then uses the most common port. Default: detection by UDPGeolocate
 
 ### Minimum timeout
-The minimum amount of time that UDPGeolocate should take between checking on the IP address. Set to a higher value for less frequent checks, and for less strain on the CPU.
+The minimum amount of time in seconds that UDPGeolocate should take between checking on the IP address. Set to a higher value for less frequent checks, and for less strain on the CPU. Default: 1
 
 ## Contributions
-For debugging, just set the logger level to logging.DEBUG in the script.
+For debugging, just set the logger level to logging.DEBUG in the script. This will then output internal events of the script. They might not be interesting to the normal user, but if you feel like fiddling with the code or debugging if an error occurs, they can be quite helpful.
 
-In case of bugs, please open up an issue in the issue tracker, or email me: <algb12.19@gmail.com>
+In case of bugs or suggestions, please open up an issue in the issue tracker, or email me: <algb12.19@gmail.com>

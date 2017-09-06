@@ -4,6 +4,7 @@ import subprocess
 import json
 import platform
 import sys
+import socket
 import os
 import time
 import urllib.request, urllib.parse, urllib.error
@@ -29,11 +30,19 @@ class UDPGeolocate(object):
         self.WINDUMP_URL = 'https://www.winpcap.org/windump/install/bin/windump_3_9_5/WinDump.exe'
         self.PORT_PROBING_ATTEMPTS = 5
         self.NULL_DEVICE = open(os.devnull, 'wb')
-        # Directory wherein this file is contained
         self.CUR_DIR = os.path.dirname(os.path.realpath(__file__))
+        self.HOST_IP = self.get_host_IP()
+        # Initialise config attributes
+        self.conf = {
+            'min_pack_len': 200,
+            'port': None,
+            'timeout': 1
+        }
+        # Housekeeping and internal stuff
         self.running = True
         self.procs = []
         self.q = queue.Queue()
+        # Ensure graceful exit
         signal.signal(signal.SIGINT, signal.default_int_handler)
         atexit.register(self.stop_app)
 
@@ -61,25 +70,31 @@ class UDPGeolocate(object):
 
     # Detect UDP port used by service
     def detect_UDP_port(self, secs):
+        logging.debug('Starting UDP port detection...')
         # Probe for UDP packets and count number of packets per port
         attempts = 0
         ports = {}
         while attempts < self.PORT_PROBING_ATTEMPTS:
-            if platform.system() == 'Darwin' or platform.system() == 'Linux':
-                proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp and greater ' + str(
-                    self.minPackLen)], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
-            if platform.system() == 'Windows':
-                proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp and greater ' + str(
-                    self.minPackLen)], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
-            global procs
-            self.procs.append(proc)
+            try:
+                if platform.system() == 'Darwin' or platform.system() == 'Linux':
+                    proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp and greater ' + str(
+                        self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                if platform.system() == 'Windows':
+                    proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp and greater ' + str(
+                        self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                self.procs.append(proc)
+            except KeyboardInterrupt:
+                sys.exit()
             output = proc.stdout.readline()
             logging.debug('Subprocess output returned: %s', output)
             proc.wait()
             self.procs.remove(proc)
-            match = re.findall(
-                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]*', output.decode('utf-8'))[1].split('.')[4].strip()
-            logging.debug('Match after regexes and split: %s', match)
+            matches = re.findall(
+                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]*', output.decode('utf-8'))
+            for tempMatch in matches:
+                if self.HOST_IP in tempMatch:
+                    match = tempMatch.split('.')[4].strip()
+            logging.debug('Match after regex, IP filter and split: %s', match)
             if match in ports:
                 ports[match] += 1
             else:
@@ -97,61 +112,82 @@ class UDPGeolocate(object):
         return port
 
     # Function to extract IP from UDP packet
-    def get_IP_from_UDP_packet(self, port, minPackLen):
-        if platform.system() == 'Darwin' or platform.system() == 'Linux':
-            proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp src port ' + str(self.port) + ' and greater ' + str(
-                self.minPackLen)], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
-        if platform.system() == 'Windows':
-            proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp src port ' + str(self.port) +
-                                     ' and greater ' + str(self.minPackLen)], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
-        global procs
-        self.procs.append(proc)
+    def get_IP_from_UDP_packet(self, port, min_pack_len):
+        try:
+            if platform.system() == 'Darwin' or platform.system() == 'Linux':
+                proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) + ' and greater ' + str(
+                    self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+            if platform.system() == 'Windows':
+                proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) +
+                                         ' and greater ' + str(self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+            self.procs.append(proc)
+        except KeyboardInterrupt:
+            sys.exit()
         output = proc.stdout.readline().strip()
         logging.debug('Subprocess output returned: %s', output)
         proc.wait()
         self.procs.remove(proc)
         if output:
-            match = re.findall(
-                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', output.decode('utf-8'))[1].strip()
-            logging.debug('Match after regexes: %s', match)
-            return match
+            matches = re.findall(
+                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', output.decode('utf-8'))
+            for match in matches:
+                if self.HOST_IP not in match:
+                    return match.strip()
+            logging.debug('Match after regex and IP filter: %s', match)
         return '0.0.0.0'
 
     # Function to get data for IP from geolocation API
-    def get_IP_data(self, ip):
-        url = self.GEOLOCATION_API_URL + ip
+    def get_IP_data(self, IP):
+        url = self.GEOLOCATION_API_URL + IP
         handle = urllib.request.urlopen(url)
         jsonStr = handle.read().decode('utf-8')
         data = json.loads(jsonStr)
         logging.debug('Geolocation API (%s) returned data: %s', url, jsonStr)
         return data
 
+    def get_host_IP(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))
+        host_IP = s.getsockname()[0]
+        logging.debug('Host IP is %s', host_IP)
+        s.close()
+        return host_IP
+
     # Logic runs in a separate thread from GUI
     def logic_thread(self):
         logging.debug('Started logic thread')
 
         # Initially, set old IP to an arbitrary address
-        oldIp = '0.0.0.0'
+        old_IP = '0.0.0.0'
 
         # Loop to check for IP of UDP packet
         while self.running:
             # Don't do anything if IP is the same as old IP
-            ip = self.get_IP_from_UDP_packet(self.port, self.minPackLen)
-            if oldIp != ip:
+            IP = self.get_IP_from_UDP_packet(
+                self.conf['port'], self.conf['min_pack_len'])
+            if old_IP != IP:
                 logging.debug('Capturing UDP packet on port ' +
-                              str(self.port) + '...')
-                data = self.get_IP_data(ip)
-                self.q.put({'data': data, 'ip': ip})
+                              str(self.conf['port']) + '...')
+                data = self.get_IP_data(IP)
+                self.q.put({'data': data, 'IP': IP})
             else:
-                logging.debug('IP %s is identical to old IP', ip)
-            oldIp = ip
-            time.sleep(float(self.timeout))
+                logging.debug('IP %s is identical to old IP', IP)
+            old_IP = IP
+            time.sleep(float(self.conf['timeout']))
+
+    # Function to start the logic thread
+    def start_logic_thread(self):
+        # Start logic thread
+        t = threading.Thread(target=self.logic_thread)
+        t.daemon = True
+        t.start()
 
     # Set config for UDPGeolocate
-    def set_conf(self, minPackLen, port, timeout):
-        self.minPackLen = minPackLen if minPackLen != '' else 200
-        if port != '':
-            self.port = port
+    def set_conf(self, min_pack_len, port, timeout):
+        self.conf['min_pack_len'] = min_pack_len if min_pack_len.isdigit() and (
+            int(min_pack_len) >= 0) else 200
+        if port.isdigit() and (0 <= int(port) <= 65535):
+            self.conf['port'] = port
         else:
             root = tk.Tk()
             root.title('Please wait')
@@ -159,39 +195,52 @@ class UDPGeolocate(object):
                      text='Please wait while port is being detected...').pack()
             root.update_idletasks()
             root.update()
-            self.port = u.detect_UDP_port(u.PORT_PROBING_ATTEMPTS)
+            try:
+                self.conf['port'] = self.detect_UDP_port(
+                    self.PORT_PROBING_ATTEMPTS)
+            except KeyboardInterrupt:
+                sys.exit()
             root.destroy()
-        self.timeout = timeout if timeout != '' else 1
+        self.conf['timeout'] = timeout if timeout.isdigit() and (
+            0 <= int(timeout) <= 10) else 1
+        logging.debug('Config values: %s', self.conf)
 
     # Gracefully stop subprocesses
     def stop_procs(self):
         for proc in self.procs:
-            proc.terminate()
-            proc.wait()
-            logging.debug('Terminated process with PID %s', proc.pid)
+            try:
+                proc.terminate()
+                proc.wait()
+                logging.debug(
+                    'Successfully terminated process with PID %s', proc.pid)
+            except:
+                logging.debug(
+                    'Error terminating process with PID %s', proc.pid)
+                pass
 
     # Handler to gracefully exit app
     def stop_app(self):
+        logging.debug('Exit handler invoked')
         self.stop_procs()
         self.running = False
 
     # Config dialogue
     def show_conf_dialogue(self):
         root = tk.Tk()
-        root.protocol("WM_DELETE_WINDOW", self.stop_app)
+        root.protocol("WM_DELETE_WINDOW", sys.exit)
 
         root.title('Config')
-        tk.Label(root, text='Minimum packet size').pack()
-        root.minPackLenEntry = tk.Entry(root)
-        root.minPackLenEntry.insert(0, 200)
-        root.minPackLenEntry.pack()
+        tk.Label(root, text='Minimum packet length').pack()
+        root.min_pack_len_entry = tk.Entry(root)
+        root.min_pack_len_entry.insert(0, 200)
+        root.min_pack_len_entry.pack()
         tk.Label(root, text='Port (leave blank for detection)').pack()
-        root.portEntry = tk.Entry(root)
-        root.portEntry.pack()
+        root.port_entry = tk.Entry(root)
+        root.port_entry.pack()
         tk.Label(root, text='Timeout (seconds)').pack()
-        root.timeoutEntry = tk.Entry(root)
-        root.timeoutEntry.insert(0, 1)
-        root.timeoutEntry.pack()
+        root.timeout_entry = tk.Entry(root)
+        root.timeout_entry.insert(0, 1)
+        root.timeout_entry.pack()
         root.done_btn = tk.Button(root, text='Done')
         root.done_btn.config(command=lambda: self.on_conf_OK(root))
         root.done_btn.pack()
@@ -200,68 +249,69 @@ class UDPGeolocate(object):
 
     def on_conf_OK(self, root):
         root.done_btn.config(state='disabled')
-        self.set_conf(root.minPackLenEntry.get(),
-                      root.portEntry.get(), root.timeoutEntry.get())
+        self.set_conf(root.min_pack_len_entry.get(),
+                      root.port_entry.get(), root.timeout_entry.get())
         root.destroy()
+
+    def update_GUI(self):
+        try:
+            elem = self.q.get_nowait()
+            data = elem['data']
+            IP = elem['IP']
+        except queue.Empty:
+            # logging.debug('Queue empty')
+            pass
+        except KeyboardInterrupt:
+            sys.exit()
+        else:
+            logging.debug('Queue not empty')
+            for widget in self.root.winfo_children():
+                widget.destroy()
+            self.root.title_label = tk.Label(self.root, font=(
+                None, 16), text='Geolocation data for ' + str(IP) + ' (port ' + str(self.conf['port']) + '):').grid(row=0)
+            pos = 1
+            for entry in data.keys():
+                self.root.labels_entry[entry] = tk.Label(
+                    self.root, text=entry).grid(row=pos, stick='W')
+                self.root.labels_value[entry] = tk.Label(self.root, text=data[entry]).grid(
+                    row=pos, column=1, stick='E')
+                pos += 1
+            tk.Button(self.root, text='Quit', command=sys.exit).grid(
+                row=pos, columnspan=2)
+        self.root.after(100, self.update_GUI)
+
+    def show_main_GUI(self):
+        self.root = tk.Tk()
+        self.root.title('UDPGeolocate')
+
+        # Initialise Tkinter vars
+        self.root.labels_entry = {}
+        self.root.labels_value = {}
+        self.root.title_label = tk.Label(self.root, font=(
+            None, 16), text='Awaiting new IP...').grid(row=0, columnspan=2)
+        tk.Button(self.root, text='Quit', command=sys.exit).grid(
+            row=1, columnspan=2)
+
+        # Upon closing window, stop app
+        self.root.protocol("WM_DELETE_WINDOW", sys.exit)
+
+        # Tkinter GUI loop
+        self.root.after(100, self.update_GUI)
+        self.root.mainloop()
 
 
 if __name__ == '__main__':
     # Initiate main class
     u = UDPGeolocate()
+
+    # Check for the needed prerequisites on Windows
     u.Windows_prereq_check()
 
-    # Show config dialogue
+    # Show the UDPGeolocate config dialogue
     u.show_conf_dialogue()
 
-    # Start logic thread
-    t = threading.Thread(target=u.logic_thread)
-    t.daemon = True
-    t.start()
+    # Start the logic thread
+    u.start_logic_thread()
 
-    # MAIN GUI
-    # Initialise Tkinter
-    root = tk.Tk()
-    root.title('UDPGeolocate')
-
-    # Initialise Tkinter vars
-    labelsEntry = {}
-    labelsValue = {}
-    titleLabel = tk.Label(root, font=(
-        None, 16), text='Awaiting new IP...').grid(row=0, columnspan=2)
-    tk.Button(root, text='Quit', command=u.stop_app).grid(row=1, columnspan=2)
-
-    # Upon closing window, stop app
-    root.protocol("WM_DELETE_WINDOW", u.stop_app)
-
-    # Tkinter GUI loop
-    while u.running:
-        try:
-            elem = u.q.get_nowait()
-            data = elem['data']
-            ip = elem['ip']
-        except queue.Empty:
-            # logging.debug('Queue empty')
-            pass
-        except KeyboardInterrupt:
-            u.stop_app()
-        else:
-            logging.debug('Queue not empty')
-            logging.debug(data)
-            for widget in root.winfo_children():
-                widget.destroy()
-            titleLabel = tk.Label(root, font=(
-                None, 16), text='Geolocation data for ' + str(ip) + ' (port ' + str(u.port) + '):').grid(row=0)
-            pos = 1
-            for entry in data.keys():
-                labelsEntry[entry] = tk.Label(
-                    root, text=entry).grid(row=pos, stick='W')
-                labelsValue[entry] = tk.Label(root, text=data[entry]).grid(
-                    row=pos, column=1, stick='E')
-                pos += 1
-            tk.Button(root, text='Quit', command=u.stop_app).grid(
-                row=pos, columnspan=2)
-        try:
-            root.update_idletasks()
-            root.update()
-        except tk.TclError:
-            pass
+    # Show main GUI
+    u.show_main_GUI()
