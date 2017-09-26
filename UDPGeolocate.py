@@ -89,18 +89,23 @@ class UDPGeolocate(object):
             logging.debug('Subprocess output returned: %s', output)
             proc.wait()
             self.procs.remove(proc)
+            match = ''
             matches = re.findall(
                 r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]*', output.decode('utf-8'))
             for tempMatch in matches:
                 if self.HOST_IP in tempMatch:
-                    match = tempMatch.split('.')[4].strip()
-            logging.debug('Match after regex, IP filter and split: %s', match)
-            if match in ports:
-                ports[match] += 1
+                    match = tempMatch
+                    logging.debug('Match after regex, IP filter and split: %s', match)
+            if self.HOST_IP in match:
+                port = match.split('.')[4].strip()
+                if match in ports:
+                    ports[port] += 1
+                else:
+                    ports[port] = 1
+                attempts += 1
+                logging.debug('Port %s has %s occurrences', match, ports[port])
             else:
-                ports[match] = 1
-            attempts += 1
-            logging.debug('Port %s has %s occurrences', match, ports[match])
+                logging.debug('Captured packet not from or for this IP address')
         # Calculate most common port
         lastPortCount = 0
         for curPort in ports:
