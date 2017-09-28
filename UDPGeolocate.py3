@@ -17,7 +17,7 @@ import queue
 import tkinter as tk
 
 # Set logging level to logging.DEBUG for detailed debug info
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class UDPGeolocate(object):
@@ -173,8 +173,7 @@ class UDPGeolocate(object):
             if old_IP != IP:
                 logging.debug('Capturing UDP packet on port ' +
                               str(self.conf['port']) + '...')
-                data = self.get_IP_data(IP)
-                self.q.put({'data': data, 'IP': IP})
+                self.q.put(IP)
             else:
                 logging.debug('IP %s is identical to old IP', IP)
             old_IP = IP
@@ -260,9 +259,8 @@ class UDPGeolocate(object):
 
     def update_GUI(self):
         try:
-            elem = self.q.get_nowait()
-            data = elem['data']
-            IP = elem['IP']
+            IP = self.q.get_nowait()
+            data = self.get_IP_data(IP)
         except queue.Empty:
             # logging.debug('Queue empty')
             pass
