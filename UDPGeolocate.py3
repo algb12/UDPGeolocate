@@ -30,7 +30,6 @@ class UDPGeolocate(object):
         self.GEOLOCATION_API_URL = 'http://ip-api.com/json/'
         self.WINDUMP_URL = 'https://www.winpcap.org/windump/install/bin/windump_3_9_5/WinDump.exe'
         self.PORT_PROBING_ATTEMPTS = 5
-        self.NULL_DEVICE = open(os.devnull, 'wb')
         self.CUR_DIR = os.path.dirname(os.path.realpath(__file__))
         self.HOST_IP = self.get_host_IP()
         # Initialise config attributes
@@ -78,11 +77,13 @@ class UDPGeolocate(object):
         while attempts < self.PORT_PROBING_ATTEMPTS:
             try:
                 if platform.system() == 'Darwin' or platform.system() == 'Linux':
-                    proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp and greater ' + str(
-                        self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                    with open(os.devnull, 'w') as tempf:
+                        proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp and greater ' + str(
+                            self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=tempf, stdin=subprocess.PIPE)
                 if platform.system() == 'Windows':
-                    proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp and greater ' + str(
-                        self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                    with open(os.devnull, 'w') as tempf:
+                        proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp and greater ' + str(
+                            self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=tempf, stdin=subprocess.PIPE)
                 self.procs.append(proc)
             except KeyboardInterrupt:
                 sys.exit()
@@ -139,11 +140,13 @@ class UDPGeolocate(object):
         while self.running:
             try:
                 if platform.system() == 'Darwin' or platform.system() == 'Linux':
-                    proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) + ' and greater ' + str(
-                        self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                    with open(os.devnull, 'w') as tempf:
+                        proc = subprocess.Popen(['sudo', 'tcpdump', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) + ' and greater ' + str(
+                            self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=tempf, stdin=subprocess.PIPE)
                 if platform.system() == 'Windows':
-                    proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) +
-                                             ' and greater ' + str(self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=self.NULL_DEVICE, stdin=subprocess.PIPE)
+                    with open(os.devnull, 'w') as tempf:
+                        proc = subprocess.Popen([self.CUR_DIR + '\WinDump.exe', '-n', '-c1', 'ip and udp port ' + str(self.conf['port']) +
+                                                 ' and greater ' + str(self.conf['min_pack_len'])], stdout=subprocess.PIPE, stderr=tempf, stdin=subprocess.PIPE)
                 self.procs.append(proc)
                 output = proc.stdout.readline().strip()
                 logging.debug('Subprocess output returned: %s', output)
