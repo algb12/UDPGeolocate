@@ -59,6 +59,10 @@ Run from the terminal, with root privileges: `sudo python /path/to/UDPGeolocate.
 ### Windows
 Run from the command line: `python.exe \path\to\UDPGeolocate.py`
 
+If you have multiple versions of Python, then use the `-2` or `-3` flag to specify which version of Python the script should run under:
+
+`py -2 \path\to\UDPGeolocate.py`*or* `py -3 \path\to\UDPGeolocate.py3`
+
 In case the prerequisites check fails, follow the instructions printed out by UDPGeolocate.
 
 If you prefer to use Python 3.x instead, then replace `python` with `python3` instead.
