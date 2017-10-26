@@ -9,6 +9,7 @@ import os
 import time
 from urllib import urlopen
 from urllib import urlretrieve
+import httplib
 import re
 import signal
 import atexit
@@ -164,10 +165,15 @@ class UDPGeolocate(object):
                 if old_IP != IP:
                     logging.debug('Capturing UDP packet on port ' +
                                   str(self.conf['port']) + '...')
-                    jsonurl = urlopen(self.GEOLOCATION_API_URL + IP)
-                    res = json.loads(jsonurl.read().decode('utf-8'))
-                    data = {'IP': IP, 'res': res}
-                    self.q.put(data)
+                    try:
+                        jsonurl = urlopen(self.GEOLOCATION_API_URL + IP)
+                        res = json.loads(jsonurl.read().decode('utf-8'))
+                        data = {'IP': IP, 'res': res}
+                        self.q.put(data)
+                    except (IOError, httplib.HTTPException):
+                        logging.debug(
+                            'HTTP error for URL %s, not updating queue this time', jsonurl)
+                        pass
                 else:
                     logging.debug('IP %s is identical to old IP', IP)
                 old_IP = IP

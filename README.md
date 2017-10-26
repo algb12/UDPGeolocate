@@ -21,9 +21,7 @@ Basically, use with care! I am NOT responsible or liable in any way for any dire
 ### Installing Python (if applicable)
 Make sure that you've got Python installed on your OS. On OS X and Linux, this should be available out-of-the-box. If, for some strange reason, it isn't, it can be installed too. On Windows, however, it has to be installed. When installing Python on Windows, **make sure to enable the "Add to Path" option in the Python installer**!
 
-Python can be downloaded from the [official Python website](https://www.python.org/).
-
-**IMPORTANT:** If you run UDPGeolocate with Python 3.x, use the file with the `.py3` extension. Use the one with the `py` extension for Python 2.x (version 2.6 or above).
+Python 2.x can be downloaded from the [official Python website](https://www.python.org/).
 
 ### Installing WinPcap or Win10Pcap (Windows only)
 For packet-layer network traffic access, and for WinDump to work, Windows needs the WinPcap drivers, which can be [downloaded here](https://www.winpcap.org/).
@@ -33,14 +31,12 @@ From Windows 10 onwards, due to a different Network Driver Interface Specificati
 ### Installing Tcl/Tk (necessary on some Linux distributions)
 If you use UDPGeolocate on Linux, then you may find that it doesn't run due to a lacking Tk/Tcl library. The installation process is different for every package manager.
 
-On Ubuntu, for instance, to install Tcl/Tk for Python 2.x and 3.x using `apt-get`, run the following command:
+On Ubuntu, for instance, to install Tcl/Tk for Python 2.x using `apt-get`, run the following command:
 
-`sudo apt-get install python-tk python3-tk`
+`sudo apt-get install python-tk`
 
 ### Installing Python3 on OS X/macOS (optional)
 By default, OS X/macOS comes with Python 2.x (`python`), which needs no further adjustments for UDPGeolocate to run.
-
-If, for whatever reason, you prefer Python 3.x (`python3`) on OS X/macOS instead, then install it from the [official Python website](https://www.python.org/).
 
 ### Downloading UDPGeolocate
 Obviously, this script has to be downloaded in order to be used. Simply download a .ZIP of this repository, extract it, and you're good to go!
@@ -59,13 +55,11 @@ Run from the terminal, with root privileges: `sudo python /path/to/UDPGeolocate.
 ### Windows
 Run from the command line: `python.exe \path\to\UDPGeolocate.py`
 
-If you have multiple versions of Python, then use the `-2` or `-3` flag to specify which version of Python the script should run under:
+If you have multiple versions of Python, then use the `-2` flag to specify Python 2.x:
 
-`py -2 \path\to\UDPGeolocate.py`*or* `py -3 \path\to\UDPGeolocate.py3`
+`py -2 \path\to\UDPGeolocate.py`
 
 In case the prerequisites check fails, follow the instructions printed out by UDPGeolocate.
-
-If you prefer to use Python 3.x instead, then replace `python` with `python3` instead.
 
 ## Config
 ### Minimum packet length
